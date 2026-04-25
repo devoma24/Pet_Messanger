@@ -85,23 +85,109 @@ void Account::mainMenu()
 
 void Account::chatMenu()
 {
-    mtx.lock();
-    for(const auto& message : messages_)
+    std::cout << "Ваши чаты." << std::endl;
+    for(int i = 0; i < messages_.size(); ++i)
+    {
+        std::cout << i + 1 << ". ";
+        for(const auto& contact: contacts_)
+        {
+            if(contact.id == messages_[i].id)
+            {
+                std::cout << contact.username;
+                break;
+            }
+        }
+    }
+
+    while(true)
+    {
+        std::cout << "Выберите действие:" << std::endl;
+        std::cout << "1. Открыть чат" << std::endl;
+        std::cout << "2. Создать новый чат" << std::endl;
+        std::cout << "3. Вернуться в главное меню" << std::endl;
+        int choice = 0;
+        std::cin >> choice;
+        switch (choice)
+        {
+            case 1:
+            {
+                std::cout << "Введите номер чата, который хотите открыть: ";
+                int chatChoice = 0;
+                std::cin >> chatChoice;
+                openChat(chatChoice - 1); // Открыть выбранный чат
+                break;
+            }
+            case 2:
+            {
+                createChat(); // Создать новый чат
+                break;
+            }
+            case 3:
+            {
+                return; // Вернуться в главное меню
+            }
+            default:
+            {
+                std::cout << "Неверный выбор. Пожалуйста, выберите 1, 2 или 3." << std::endl;
+                break;
+            }
+        }
+
+    }
+}
+
+void Account::openChat(int chatId)
+{
+    if(chatId < 0 || chatId >= messages_.size())
+    {
+        std::cout << "Неверный номер чата. Пожалуйста, выберите существующий чат." << std::endl;
+        return;
+    }
+    std::cout << "Открыт чат с " << contacts_[chatId].username << "." << std::endl;
+    for(const auto& message: messages_[chatId].messages)
     {
         std::cout << message << std::endl;
     }
-    mtx.unlock();
-    std::string message = "a";
-    std::cout << "Введите 'выход' для выхода из чата." << std::endl;
-    while(message != "выход")
+    while(true)
     {
-        std::cout << "Введите сообщение: ";
-        std::cin.ignore(); // Очистка буфера ввода
+        std::cout << "Введите сообщение (или 'exit' для выхода из чата): ";
+        std::string message;
+        std::cin.ignore(); // Очистить буфер ввода
         std::getline(std::cin, message);
-        manager_request_.requestSendMessage(id_, message);
+        if(message == "exit")
+        {
+            return; // Выход из чата
+        }
         mtx.lock();
-        messages_.push_back(message);
+        messages_[chatId].messages.push_back(message); // Добавить сообщение в чат
         mtx.unlock();
+    }
+}
+
+void Account::createChat()
+{
+    std::cout << "Существующие контакты:" << std::endl;
+    for(const auto& contact: contacts_)
+    {
+        std::cout << contact.id << ". " << contact.username << std::endl;
+    }
+    while(true)
+    {
+        std::cout << "Введите ID контакта, с которым хотите создать чат: ";
+        int contactId = 0;
+        std::cin >> contactId;
+        auto it = std::find_if(contacts_.begin(), contacts_.end(), [contactId](const Contact& contact) {
+            return contact.id == contactId;
+        });
+        if(it == contacts_.end())
+        {
+            std::cout << "Неверный ID контакта. Пожалуйста, выберите существующий контакт." << std::endl;
+            return;
+        }
+
+        messages_.push_back({contactId, {}}); // Создать новый чат с выбранным контактом
+        std::cout << "Чат с " << it->username << " успешно создан!" << std::endl;
+        return;
     }
 }
 
@@ -113,7 +199,7 @@ void Account::listenServer()
         // и добавления их в messages_
         std::this_thread::sleep_for(std::chrono::seconds(1)); // Имитация ожидания сообщений от сервера
         mtx.lock();
-        messages_.push_back("Новое сообщение от сервера!"); // Имитация получения нового сообщения от сервера
+        //messages_.push_back("Новое сообщение от сервера!"); // Имитация получения нового сообщения от сервера
         mtx.unlock();
     }
 }
